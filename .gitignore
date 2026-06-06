@@ -1,0 +1,21 @@
+# Generated audit output
+reports/
+
+# Local ZAP runtime/profile cache
+zap-home/
+
+# Locally downloaded browser drivers
+tools/
+
+# Python/runtime noise
+__pycache__/
+*.py[cod]
+
+# macOS/editor noise
+.DS_Store
+.idea/
+.vscode/
+
+# Temporary files
+*.tmp
+*.log
