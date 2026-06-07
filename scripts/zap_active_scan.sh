@@ -9,6 +9,7 @@ fi
 TARGET="$1"
 SLUG="${2:-}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$ROOT_DIR/scripts/lib/zap_common.sh"
 BASE_ZAP_HOME="${ZAP_BASE_HOME:-$ROOT_DIR/zap-home}"
 RUN_ZAP_HOME="$(mktemp -d "${TMPDIR:-/tmp}/zap-home-active.XXXXXX")"
 DOMAIN="${SLUG:-$(printf '%s' "$TARGET" | sed -E 's#^https?://##; s#[^A-Za-z0-9._-]+#-#g; s#-+$##')}"
@@ -16,39 +17,8 @@ RUN_DIR="$ROOT_DIR/reports/$DOMAIN-active"
 REPORT_BASENAME="Security Audit – $DOMAIN"
 PLAN="$(mktemp "${TMPDIR:-/tmp}/zap-active-plan.XXXXXX")"
 ZAP_OUTPUT="$(mktemp "${TMPDIR:-/tmp}/zap-active-output.XXXXXX")"
-ZAP_SH="${ZAP_SH:-/Applications/ZAP.app/Contents/Java/zap.sh}"
-CHROME_BINARY="${CHROME_BINARY:-/Applications/Google Chrome.app/Contents/MacOS/Google Chrome}"
-FIREFOX_BINARY="${FIREFOX_BINARY:-/Applications/Firefox.app/Contents/MacOS/firefox}"
-CHROME_DRIVER="${CHROME_DRIVER:-}"
 TODAY="$(date +%F)"
-ZAP_CONFIGS=()
-
-if [ ! -x "$ZAP_SH" ]; then
-  echo "OWASP ZAP not found at: $ZAP_SH" >&2
-  echo "Install ZAP or set ZAP_SH=/path/to/zap.sh" >&2
-  exit 1
-fi
-
-if [ -x "$CHROME_BINARY" ] && [ -z "$CHROME_DRIVER" ]; then
-  CHROME_VERSION="$("$CHROME_BINARY" --version | awk '{print $3}')"
-  CHROME_DRIVER="$ROOT_DIR/tools/chromedriver-$CHROME_VERSION/chromedriver-mac-arm64/chromedriver"
-fi
-if [ ! -x "$CHROME_DRIVER" ] && [ -x "$BASE_ZAP_HOME/webdriver/macos/arm64/chromedriver" ]; then
-  CHROME_DRIVER="$BASE_ZAP_HOME/webdriver/macos/arm64/chromedriver"
-fi
-if [ -x "$CHROME_BINARY" ]; then
-  ZAP_CONFIGS+=(-config "selenium.chromeBinary=$CHROME_BINARY")
-fi
-if [ -x "$CHROME_DRIVER" ]; then
-  ZAP_CONFIGS+=(-config "selenium.chromeDriver=$CHROME_DRIVER")
-fi
-if [ -x "$FIREFOX_BINARY" ]; then
-  ZAP_CONFIGS+=(-config "selenium.firefoxBinary=$FIREFOX_BINARY")
-fi
-if [ -x "$BASE_ZAP_HOME/webdriver/macos/arm64/geckodriver" ]; then
-  ZAP_CONFIGS+=(-config "selenium.firefoxDriver=$BASE_ZAP_HOME/webdriver/macos/arm64/geckodriver")
-fi
-ZAP_CONFIGS+=(-config "start.dayLastChecked=$TODAY")
+init_zap_environment "$ROOT_DIR" "$BASE_ZAP_HOME" "$TODAY"
 ZAP_CONFIGS+=(-config "rules.domxss.browserid=chrome-headless")
 
 cleanup() {
@@ -58,9 +28,7 @@ cleanup() {
 trap cleanup EXIT
 
 mkdir -p "$RUN_DIR"
-if [ -d "$BASE_ZAP_HOME/plugin" ]; then
-  ln -s "$BASE_ZAP_HOME/plugin" "$RUN_ZAP_HOME/plugin"
-fi
+link_zap_plugins_if_available "$BASE_ZAP_HOME" "$RUN_ZAP_HOME"
 
 cat > "$PLAN" <<YAML
 env:
@@ -141,8 +109,7 @@ jobs:
       reportTitle: "$REPORT_BASENAME"
 YAML
 
-if ! PATH="${JAVA_BIN_DIR:-/opt/homebrew/opt/openjdk@21/bin}:$PATH" \
-    "$ZAP_SH" \
+if ! run_with_java_path "$ZAP_SH" \
     -cmd -silent -loglevel ERROR -dir "$RUN_ZAP_HOME" \
     "${ZAP_CONFIGS[@]}" \
     -autorun "$PLAN" >"$ZAP_OUTPUT" 2>&1; then

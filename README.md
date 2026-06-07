@@ -26,38 +26,57 @@ At the end of each run, the script prints spreadsheet-ready fields:
 
 ## Requirements
 
-Recommended macOS setup:
+Recommended setup:
 
-- Homebrew
 - OWASP ZAP
-- Google Chrome
-- OpenJDK 21
+- Google Chrome or Chromium
+- Java 17+ (OpenJDK 21 recommended)
 - Python 3
 
-Install the common dependencies:
+Install common dependencies on macOS or Linux:
+
+```bash
+./scripts/install.sh
+```
+
+macOS users can also run the compatibility wrapper:
 
 ```bash
 ./scripts/install_macos.sh
 ```
 
-Or install them manually:
+Manual macOS install:
 
 ```bash
 brew install --cask zap google-chrome
 brew install openjdk@21 python
 ```
 
-The scripts assume these default paths:
+Manual Ubuntu/Debian install, if you do not want to use the helper:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y ca-certificates curl unzip default-jre python3
+sudo snap install zaproxy --classic
+```
+
+Then install Google Chrome or Chromium. Chrome is recommended for the AJAX spider and PDF generation.
+
+The scripts auto-detect common paths:
 
 - ZAP: `/Applications/ZAP.app/Contents/Java/zap.sh`
+- ZAP: `/usr/share/zaproxy/zap.sh`, `/opt/zaproxy/zap.sh`, or `zaproxy`
 - Chrome: `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`
+- Chrome/Chromium: `google-chrome`, `google-chrome-stable`, `chromium`, or `chromium-browser`
 - Java: `/opt/homebrew/opt/openjdk@21/bin`
+- Java: system `java` on Linux, or `/usr/lib/jvm/default-java/bin`
 
 Override them when needed:
 
 ```bash
 ZAP_SH=/path/to/zap.sh \
 CHROME_BINARY=/path/to/chrome \
+CHROME_DRIVER=/path/to/chromedriver \
 JAVA_BIN_DIR=/path/to/java/bin \
 ./scripts/zap_passive_scan.sh https://example.edu example.edu
 ```
@@ -136,6 +155,9 @@ Temporary removal should be recommended only for confirmed high-impact exposure,
 
 ```text
 scripts/
+  install.sh              macOS/Linux dependency installer
+  install_macos.sh        Compatibility wrapper for install.sh
+  lib/zap_common.sh       Cross-platform path detection helpers
   zap_passive_scan.sh     Passive spider + passive scan
   zap_active_scan.sh      Active scan with bounded duration
   zap_full_audit.sh       Spider + AJAX spider + passive + active scan
@@ -168,10 +190,23 @@ If ZAP is not found:
 ZAP_SH=/Applications/ZAP.app/Contents/Java/zap.sh ./scripts/zap_passive_scan.sh https://example.edu example.edu
 ```
 
+On Linux, try:
+
+```bash
+ZAP_SH=/usr/share/zaproxy/zap.sh ./scripts/zap_passive_scan.sh https://example.edu example.edu
+```
+
 If PDF generation fails, confirm Chrome is installed or set:
 
 ```bash
 CHROME_BINARY="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+./scripts/zap_passive_scan.sh https://example.edu example.edu
+```
+
+On Linux:
+
+```bash
+CHROME_BINARY="$(command -v google-chrome-stable || command -v chromium)" \
 ./scripts/zap_passive_scan.sh https://example.edu example.edu
 ```
 

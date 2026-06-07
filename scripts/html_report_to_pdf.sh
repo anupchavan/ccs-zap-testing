@@ -8,7 +8,9 @@ fi
 
 HTML_FILE="$1"
 PDF_FILE="$2"
-CHROME_BINARY="${CHROME_BINARY:-/Applications/Google Chrome.app/Contents/MacOS/Google Chrome}"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$ROOT_DIR/scripts/lib/zap_common.sh"
+CHROME_BINARY="$(detect_chrome_binary || true)"
 PROFILE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/chrome-pdf-profile.XXXXXX")"
 CHROME_PID=""
 
@@ -27,7 +29,7 @@ if [ ! -f "$HTML_FILE" ]; then
 fi
 
 if [ ! -x "$CHROME_BINARY" ]; then
-  echo "Google Chrome not found at: $CHROME_BINARY" >&2
+  echo "Chrome/Chromium was not found." >&2
   echo "Set CHROME_BINARY=/path/to/chrome or install Google Chrome." >&2
   exit 1
 fi
